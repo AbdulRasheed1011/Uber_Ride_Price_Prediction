@@ -1,2 +1,126 @@
-google_maps_api_key: ''
-openweather_api_key: ''
+# config.yaml
+
+project:
+  name: uber_ride_price_prediction
+  version: "0.1"
+  environment: dev
+
+data_collection:
+  default_timeout_seconds: 10
+  max_retries: 3
+  backoff_factor: 1.5   # multiplier for retry delays
+  user_agent: "uber-price-collector/0.1"
+
+storage:
+  raw_data_dir: data/raw
+  processed_data_dir: data/processed
+  logs_dir: logs
+  file_format: jsonl      # jsonl or parquet or csv
+
+apis:
+
+  google_maps:
+    enabled: true
+    base_url: "https://maps.googleapis.com/maps/api"
+    auth:
+      type: api_key
+      api_key_env: "GOOGLE_MAPS_API_KEY"
+    endpoints:
+      distance_matrix:
+        path: "/distancematrix/json"
+        method: "GET"
+        params:
+          fixed:
+            units: "imperial"         # or metric
+            mode: "driving"
+          dynamic:
+            origins: null             # to be filled in code
+            destinations: null        # to be filled in code
+        rate_limit:
+          max_requests_per_minute: 50
+        output:
+          save: true
+          file_name: "google_maps_distance_matrix.jsonl"
+
+  weather:
+    enabled: true
+    # Example: OpenWeatherMap-style API
+    base_url: "https://api.openweathermap.org/data/2.5"
+    auth:
+      type: api_key
+      api_key_env: "WEATHER_API_KEY"
+    endpoints:
+      current_weather:
+        path: "/weather"
+        method: "GET"
+        params:
+          fixed:
+            units: "metric"
+          dynamic:
+            lat: null          # latitude from pickup
+            lon: null          # longitude from pickup
+        rate_limit:
+          max_requests_per_minute: 60
+        output:
+          save: true
+          file_name: "weather_current.jsonl"
+
+  events:
+    enabled: true
+    # Generic "Event API" (could be Ticketmaster, Eventbrite, etc.)
+    base_url: "https://api.example-events.com/v1"
+    auth:
+      type: api_key
+      api_key_env: "EVENTS_API_KEY"
+    endpoints:
+      nearby_events:
+        path: "/events/search"
+        method: "GET"
+        params:
+          dynamic:
+            lat: null               # city / pickup lat
+            lon: null               # city / pickup lon
+            radius_km: 10
+            datetime_from: null     # ride datetime - 3h
+            datetime_to: null       # ride datetime + 3h
+        rate_limit:
+          max_requests_per_minute: 100
+        output:
+          save: true
+          file_name: "events_nearby.jsonl"
+
+  uber_ride_pricing:
+    enabled: true
+    base_url: "https://api.uber.com"
+    auth:
+      type: bearer_token
+      token_env: "UBER_SERVER_TOKEN"
+    headers:
+      content_type: "application/json"
+    endpoints:
+      price_estimates:
+        path: "/v1.2/estimates/price"
+        method: "GET"
+        params:
+          dynamic:
+            start_latitude: null
+            start_longitude: null
+            end_latitude: null
+            end_longitude: null
+            # optional: seat_count, product_id
+        rate_limit:
+          max_requests_per_minute: 50
+        output:
+          save: true
+          file_name: "uber_price_estimates.jsonl"
+
+scheduling:
+  # How often to collect data (if you make this a scheduled job)
+  collection_interval_minutes: 10
+  batch_size: 50              # number of rides / routes per batch
+
+logging:
+  level: "INFO"               # DEBUG, INFO, WARNING, ERROR
+  log_to_file: true
+  log_to_console: true
+  log_file_name: "data_collection.log"
