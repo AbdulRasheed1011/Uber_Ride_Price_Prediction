@@ -1,1 +1,1 @@
-# Uber_Ride_Price_Prediction
+# Uber Price Prediction Project
