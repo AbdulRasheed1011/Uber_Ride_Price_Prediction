@@ -1,13 +1,3 @@
-"""
-main.py
-
-Entry point for Google Maps data collection.
-
-Run with:
-
-    python3 main.py
-"""
-
 from src.collectors.maps_api import MapsAPICollector
 
 
